@@ -1,28 +1,46 @@
-const gulp = require('gulp')
-const browsersync = require('browser-sync').create()
-const sass = require('gulp-sass')
-const autoprefixer = require('gulp-autoprefixer');
+var gulp = require('gulp'),
+    plumber = require('gulp-plumber'),
+    rename = require('gulp-rename');
+var autoprefixer = require('gulp-autoprefixer');
+var concat = require('gulp-concat');
+var uglify = require('gulp-uglify');
+var imagemin = require('gulp-imagemin'),
+    cache = require('gulp-cache');
+var sass = require('gulp-sass');
 
+gulp.task('images', function(){
+  gulp.src('src/images/**/*')
+    .pipe(cache(imagemin({ optimizationLevel: 3, progressive: true, interlaced: true })))
+    .pipe(gulp.dest('images/'));
+});
 
-//compile sass
-gulp.task('sass',function(){
-  return gulp.src(['src/scss/*.scss'])
-  .pipe(sass.sync({outputStyle: 'compressed'}).on('error',sass.logError))
-  .pipe(autoprefixer({
-    browsers: ['last 2 versions'],
-    cascade: false
-  }))
-  .pipe(gulp.dest('src/css'))
-  .pipe(browsersync.stream())
-})
+gulp.task('styles', function(){
+  gulp.src(['src/scss/**/*.scss'])
+    .pipe(plumber({
+      errorHandler: function (error) {
+        console.log(error.message);
+        this.emit('end');
+    }}))
+    .pipe(sass())
+    .pipe(autoprefixer('last 2 versions'))
+    .pipe(gulp.dest('src/css/'))
+});
 
-//watch serve
-gulp.task('serve', ['sass'] ,function(){
-  browsersync.init({
-    server: './src'
-  })
-  gulp.watch(['src/scss/*.scss'], ['sass'])
-  gulp.watch(['src/*.html']).on('change',browsersync.reload)
-})
+gulp.task('scripts', function(){
+  return gulp.src('src/scripts/**/*.js')
+    .pipe(plumber({
+      errorHandler: function (error) {
+        console.log(error.message);
+        this.emit('end');
+    }}))
+    .pipe(concat('main.js'))
+    .pipe(gulp.dest('js/'))
+    .pipe(rename({suffix: '.min'}))
+    .pipe(uglify())
+    .pipe(gulp.dest('js/'))
+});
 
-gulp.task('default',['serve'])
+gulp.task('default', function(){
+  gulp.watch("src/scss/**/*.scss", ['styles']);
+  gulp.watch("src/scripts/**/*.js", ['scripts']);
+});
